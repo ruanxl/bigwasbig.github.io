@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   
   
-  <title>  HttpClient定位纪 |   嘴强王者 </title>
+  <title>  Strace进程中的系统调用跟踪 |   嘴强王者 </title>
 
  
   
@@ -79,20 +79,20 @@
 	<div class="post-header">
 
 	<p class="post-title">	
-		HttpClient定位纪
+		strace进程中的系统调用跟踪
 	</p>
 			
 
 	<div class="meta-info">	
 	<span>
-		9月 12, 2018
+		9月 18, 2018
 	</span>
 
 	
 	
 		<i class="iconfont icon-words"></i>
 		<span>
-			80
+			582
 		</span>
 	
 </div>
@@ -105,9 +105,12 @@
 		
 
 			
-					<h3 id="测试发布字体"><a href="#测试发布字体" class="headerlink" title="测试发布字体"></a>测试发布字体</h3><h2 id="测试发布字体-1"><a href="#测试发布字体-1" class="headerlink" title="测试发布字体"></a>测试发布字体</h2><h1 id="测试发布字体-2"><a href="#测试发布字体-2" class="headerlink" title="测试发布字体"></a>测试发布字体</h1><p>“测试发布字体”</p>
-<p><a href="https://www.bbking.site" target="_blank" rel="noopener">这是个连接</a></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">第1行</span><br><span class="line">第2行</span><br><span class="line">第3行</span><br><span class="line">第4行</span><br><span class="line">第5行</span><br><span class="line">第6行</span><br><span class="line">第7行</span><br><span class="line">第8行</span><br><span class="line">第9行</span><br><span class="line">第0行</span><br><span class="line">第11行</span><br></pre></td></tr></table></figure>  	
+					<h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>strace命令是一个集诊断、调试、统计与一体的工具，常用来跟踪进程执行时的系统调用和所接收的信号。 在Linux系统，进程不能直接访问硬件设备，当进程需要访问硬件设备(比如读取磁盘文件，接收网络数据等等)时，必须由用户态模式切换至内核态模式，通过系统调用访问硬件设备。在命令执行的过程中，strace会记录和解析命令进程的所有系统调用以及这个进程所接收到的所有的信号值故而，故而可以跟踪到一个进程产生的系统调用,包括参数、返回值、执行消耗的时间。</p>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>tomcat在启动后，查看日志。发现tomcat的启动非常慢,启动后访问主页资源有时需要5、10分钟后才可以回归正常</p>
+<h3 id="诊断命令"><a href="#诊断命令" class="headerlink" title="诊断命令"></a>诊断命令</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">strace -f -o strace.out ./catalina.sh run</span><br><span class="line">-f ：除了跟踪当前进程外，还跟踪其子进程。</span><br><span class="line">-o file ：将输出信息写到文件file中，而不是显示到标准错误输出（stderr）。</span><br><span class="line">-p pid ：绑定到一个由pid对应的正在运行的进程。此参数常用来调试后台进程。</span><br></pre></td></tr></table></figure>
+<h3 id="执行异常"><a href="#执行异常" class="headerlink" title="执行异常"></a>执行异常</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">strace: exec: Exec format error</span><br><span class="line">一不小心把命令敲成了strace -f -o ./catalina.sh run导致把输入写入到catalina.sh中，再执行命令就报了这个错误- -</span><br></pre></td></tr></table></figure>
+<p>参考文献列表：<br><a href="http://man.linuxde.net/strace" target="_blank" rel="noopener">strace命令</a><br><a href="https://linuxtools-rst.readthedocs.io/zh_CN/latest/tool/strace.html" target="_blank" rel="noopener">strace 跟踪进程中的系统调用</a></p>
+  	
 					
 	  </div>     
 	  
@@ -189,14 +192,11 @@
 
       </div>  
     <nav class="pf-paginator">
-      
-         
-          <a href="/2018/09/18/进程中的系统调用跟踪-strace/" data-hover="strace进程中的系统调用跟踪">上一篇</a>      
-            
+           
         
       
         
-        <a href="/2018/06/30/hello-world/" data-hover="hello world"> 下一篇</a>
+        <a href="/2018/09/12/HTTPClient定位纪/" data-hover="HttpClient定位纪"> 下一篇</a>
             
   </nav>   
   </div>

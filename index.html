@@ -151,7 +151,7 @@
 	   
 	<div class="article-header">
 	    
-	     <a class="article-title" href="/2018/09/12/HTTPClient定位纪/">HttpClient定位纪</a>  
+	     <a class="article-title" href="/2018/09/12/Connection 异常问题分析/">Connection 异常问题分析</a>  
 	       
 		 
 
@@ -170,15 +170,19 @@
     
 	<div class="article-excerpt">	
 		 
-			<h3 id="测试发布字体"><a href="#测试发布字体" class="headerlink" title="测试发布字体"></a>测试发布字体</h3><h2 id="测试发布字体-1"><a href="#测试发布字体-1" class="headerlink" title="测试发布字体"></a>测试发布字体</h2><h1 id="测试发布字体-2"><a href="#测试发布字体-2" class="headerlink" title="测试发布字体"></a>测试发布字体</h1><p>“测试发布字体”</p>
-<p>测试贴图<br><img src="/images/placeholder.png" alt="Alt text" data-src="https://cloudinary.com/console/media_library/asset/manage/summary/image/upload/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20181016164536" class="lazyload"></p>
-<p><a href="https://www.bbking.site" target="_blank" rel="noopener">这是个连接</a></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">第1行</span><br><span class="line">第2行</span><br><span class="line">第3行</span><br><span class="line">第4行</span><br><span class="line">第5行</span><br><span class="line">第6行</span><br><span class="line">第7行</span><br><span class="line">第8行</span><br><span class="line">第9行</span><br><span class="line">第0行</span><br><span class="line">第11行</span><br></pre></td></tr></table></figure>
+			<h3 id="问题起因"><a href="#问题起因" class="headerlink" title="问题起因"></a>问题起因</h3><p>后台使用httpClient向外系统发送通知时经常产生Connection reset和Connection time out的问题，导致通知发送不成功，影响正常业务。</p>
+<h3 id="Connection-reset-问题分析"><a href="#Connection-reset-问题分析" class="headerlink" title="Connection reset 问题分析"></a>Connection reset 问题分析</h3><p>首先先贴一下问题的异常堆栈<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.net.SocketException: Connection reset</span><br><span class="line">        at java.net.SocketInputStream.read(SocketInputStream.java:196)</span><br><span class="line">        at java.net.SocketInputStream.read(SocketInputStream.java:122)</span><br><span class="line">        at java.io.BufferedInputStream.fill(BufferedInputStream.java:235)</span><br><span class="line">        at java.io.BufferedInputStream.read(BufferedInputStream.java:254)</span><br><span class="line">        at org.apache.commons.httpclient.HttpParser.readRawLine(HttpParser.java:78)</span><br><span class="line">        at org.apache.commons.httpclient.HttpParser.readLine(HttpParser.java:106)</span><br><span class="line">        at org.apache.commons.httpclient.HttpConnection.readLine(HttpConnection.java:1116)</span><br><span class="line">        at org.apache.commons.httpclient.MultiThreadedHttpConnectionManager$HttpConnectionAdapter.readLine(MultiThreadedHttpConnectionManager.java:1413)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.readStatusLine(HttpMethodBase.java:1973)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.readResponse(HttpMethodBase.java:1735)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.execute(HttpMethodBase.java:1098)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodDirector.executeWithRetry(HttpMethodDirector.java:398)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodDirector.executeMethod(HttpMethodDirector.java:171)</span><br><span class="line">        at org.apache.commons.httpclient.HttpClient.executeMethod(HttpClient.java:397)</span><br><span class="line">        at org.apache.commons.httpclient.HttpClient.executeMethod(HttpClient.java:323)</span><br><span class="line">        at com.migu.aipay.common.util.HttpClientUtil.doPost(HttpClientUtil.java:369)</span><br><span class="line">        ... 28 more</span><br></pre></td></tr></table></figure></p>
+<p>异常堆栈的第一行很明显可以看到是Socket套接字在read数据时抛出了该错误。<br>导致“Connection reset”的原因是服务器端因为某种原因关闭了Connection，而客户端依然在读写数据，此时服务器会返回复位标志“RST”，然后此时客户端就会提示“java.net.SocketException: Connection reset”。</p>
+<p>TCP建立连接时需要三次握手，在释放连接需要四次挥手；例如三次握手的过程如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">第一次握手：客户端发送syn包（syn=j）到服务器，并进入SYN_SENT状态，等待服务器确认；</span><br><span class="line">第二次握手：服务器收到syn包，并会确认客户的SYN（ack=j+1），同时自己也发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态；</span><br><span class="line">第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED（TCP连接成功）状态，完成三次握手。</span><br></pre></td></tr></table></figure></p>
+<p>可以看到握手时会在客户端和服务器之间传递一些TCP头信息，比如ACK标志、SYN标志以及挥手时的FIN标志等。</p>
+<p>除了以上这些常见的标志头信息，还有另外一些标志头信息，比如推标志PSH、复位标志RST等。其中复位标志RST的作用就是“复位相应的TCP连接”<br>前面说到出现“Connection reset”的原因是服务器关闭了Connection[调用了Socket.close()方法]。大家可能有疑问了：服务器关闭了Connection为什么会返回“RST”而不是返回“FIN”标志。<br>原因在于Socket.close()方法的语义和TCP的“FIN”标志语义不一样：发送TCP的“FIN”标志表示我不再发送数据了，而Socket.close()表示我不在发送也不接受数据了。<br>问题就出在“我不接受数据” 上，如果此时客户端还往服务器发送数据，服务器内核接收到数据，但是发现此时Socket已经close了，则会返回“RST”标志给客户端。当然，此时客户端就会提示：“Connection reset”。<br>详细说明可以参考<a href="http://docs.oracle.com/javase/1.5.0/docs/guide/net/articles/connection_release.html" target="_blank" rel="noopener">oracle的有关文档</a></p>
+<p><img src="/images/placeholder.png" alt="Alt text" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1539679787/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20181016164536.png" class="lazyload"></p>
+
 		  	  
 	</div>
 
 	<div class="article-bottom">
-		<a class="article-readmore" href="/2018/09/12/HTTPClient定位纪/">阅读更多</a> 	</div>	
+		<a class="article-readmore" href="/2018/09/12/Connection 异常问题分析/">阅读更多</a> 	</div>	
     
 </article>     
      	

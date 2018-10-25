@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   
   
-  <title>  嘴强王者 </title>
+  <title>  Connection 异常问题分析 |   嘴强王者 </title>
 
  
   
@@ -74,63 +74,38 @@
             <section class="main">  
           
 
-          
+          <article class="post">
+  
+	<div class="post-header">
 
+	<p class="post-title">	
+		Connection 异常问题分析
+	</p>
+			
 
-<div class="profile sildeUpMin">
-
-		
-		<img class="avatar lazyload" src="/images/placeholder.png" data-src="/./images/header.jpg">
-		<p class="author">烧</p>
-		
-		<div class="social">
-   		      		
-		<a target="_blank" class="social-links" href="">		
-			<i class="iconfont icon-Github"></i>
-		</a>	
-	          		
-		<a target="_blank" class="social-links" href="">		
-			<i class="iconfont icon-Facebook"></i>
-		</a>	
-	          		
-		<a target="_blank" class="social-links" href="">		
-			<i class="iconfont icon-Twitter"></i>
-		</a>	
-	          		
-		<a target="_blank" class="social-links" href="">		
-			<i class="iconfont icon-Instagram"></i>
-		</a>	
-	    
-    	</div>		
-</div>
-
-      	  	
-
-  		
-    	<article class="article">		
-	   
-	<div class="article-header">
-	    
-	     <a class="article-title" href="/2018/09/12/Connection 异常问题分析/">Connection 异常问题分析</a>  
-	       
-		 
-
-		<div class="article-meta">
-		
+	<div class="meta-info">	
+	<span>
 		9月 12, 2018
-
-		
-		</div>
-
-	</div>
-
+	</span>
 
 	
+	
+		<i class="iconfont icon-words"></i>
+		<span>
+			8349
+		</span>
+	
+</div>
 
-    
-	<div class="article-excerpt">	
-		 
-			<h3 id="一、起因"><a href="#一、起因" class="headerlink" title="一、起因"></a>一、起因</h3><p>后台使用httpClient向外系统发送通知时经常产生Connection reset和Connection timed out的问题，导致通知发送不成功，影响正常业务。</p>
+</div> 
+	 
+
+	  <div class="post-content slideDownMin">
+
+		
+
+			
+					<h3 id="一、起因"><a href="#一、起因" class="headerlink" title="一、起因"></a>一、起因</h3><p>后台使用httpClient向外系统发送通知时经常产生Connection reset和Connection timed out的问题，导致通知发送不成功，影响正常业务。</p>
 <h3 id="二、异常分类"><a href="#二、异常分类" class="headerlink" title="二、异常分类"></a>二、异常分类</h3><p> 1、Connection reset<br> 首先先贴一下问题的异常堆栈<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.net.SocketException: Connection reset</span><br><span class="line">        at java.net.SocketInputStream.read(SocketInputStream.java:196)</span><br><span class="line">        at java.net.SocketInputStream.read(SocketInputStream.java:122)</span><br><span class="line">        at java.io.BufferedInputStream.fill(BufferedInputStream.java:235)</span><br><span class="line">        at java.io.BufferedInputStream.read(BufferedInputStream.java:254)</span><br><span class="line">        at org.apache.commons.httpclient.HttpParser.readRawLine(HttpParser.java:78)</span><br><span class="line">        at org.apache.commons.httpclient.HttpParser.readLine(HttpParser.java:106)</span><br><span class="line">        at org.apache.commons.httpclient.HttpConnection.readLine(HttpConnection.java:1116)</span><br><span class="line">        at org.apache.commons.httpclient.MultiThreadedHttpConnectionManager$HttpConnectionAdapter.readLine(MultiThreadedHttpConnectionManager.java:1413)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.readStatusLine(HttpMethodBase.java:1973)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.readResponse(HttpMethodBase.java:1735)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodBase.execute(HttpMethodBase.java:1098)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodDirector.executeWithRetry(HttpMethodDirector.java:398)</span><br><span class="line">        at org.apache.commons.httpclient.HttpMethodDirector.executeMethod(HttpMethodDirector.java:171)</span><br><span class="line">        at org.apache.commons.httpclient.HttpClient.executeMethod(HttpClient.java:397)</span><br><span class="line">        at org.apache.commons.httpclient.HttpClient.executeMethod(HttpClient.java:323)</span><br><span class="line">        at com.migu.aipay.common.util.HttpClientUtil.doPost(HttpClientUtil.java:369)</span><br><span class="line">        ... 28 more</span><br></pre></td></tr></table></figure></p>
 <p>异常堆栈的第一行最明显看到的是Socket套接字在read数据时抛出了该错误。而导致Connection reset的大致原因是服务器端因为某种原因关闭了Connection，而客户端依然在读写数据，此时服务器会返回复位标志RST，然后此时客户端就会提示java.net.SocketException: Connection reset。</p>
 <p>TCP建立连接时需要三次握手，在释放连接需要四次挥手；<br>连接建立的三次握手的过程如下：<br><img src="/images/placeholder.png" alt="TCP连接建立" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1540287653/tcp%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B%E6%A8%A1%E5%9E%8B.png" class="lazyload"><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">第一次握手：客户端发送syn包（syn=j）到服务器，并进入SYN_SENT状态，等待服务器确认；</span><br><span class="line">第二次握手：服务器收到syn包，并会确认客户的SYN（ack=j+1），同时自己也发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态；</span><br><span class="line">第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED（TCP连接成功）状态，完成三次握手。</span><br></pre></td></tr></table></figure></p>
@@ -171,18 +146,97 @@
 <h3 id="名词解释"><a href="#名词解释" class="headerlink" title="名词解释"></a>名词解释</h3><p>OSI七层网络模型：<img src="/images/placeholder.png" alt="OSI七层网络模型" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1540380338/osi%E4%B8%83%E5%B1%82%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B.png" class="lazyload"><br>HTTP：HTTP属于应用层协议，在传输层使用TCP协议，在网络层使用IP协议。IP协议主要解决网络路由和寻址问题，TCP协议主要解决如何在IP层之上可靠的传递数据包，使在网络上的另一端收到发端发出的所有包，并且顺序与发出顺序一致。</p>
 <p>Socket：Socket是一组编程接口（API）。介于传输层和应用层，向应用层提供统一的编程接口。使得应用层不必了解TCP/IP协议细节便直接通过对Socket接口函数的调用完成数据在IP网络的传输。Socket基于传输层差异，可以分为四种类型：基于TCP的Socket、基于UDP的Socket、基于RawIp的Socket、基于链路层的Socket。HTTP使用的是基于TCP的Socket。</p>
 <h3 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h3><p><a href="https://hc.apache.org/httpcomponents-client-ga/tutorial/html/index.html" target="_blank" rel="noopener">HttpClient Tutorial</a><br><a href="https://book.douban.com/subject/1088054/" target="_blank" rel="noopener">TCP-IP详解卷</a><br><a href="https://my.oschina.net/xionghui/blog/508758" target="_blank" rel="noopener">Connection reset原因分析和解决方案</a></p>
+  	
+					
+	  </div>     
+	  
 
-		  	  
+	
+<div class="post-meta">
+      	
+
+      	
+</div>
+
+
+
+
+
+<div class="post-footer">
+  <div class="pf-left">
+      <img class="pf-avatar lazyload" src="/images/placeholder.png" data-src="/./images/header.jpg">
+      <p class="pf-des">Learn And Practise.</p>
+  </div>
+
+  <div class="pf-right">           
+      <div class="pf-links">
+        
+
+
+
+
+<span class="donate-btn">
+	<span class="iconfont icon-donate"></span>
+</span>
+
+
+<div id="donate-box" class="sildeUpMin">
+
+	<span class="donate-cancel iconfont icon-cancel"></span>
+
+	<div class="donate-img-box">
+		<img id="donate-qr-wechat" class="donate-img lazyload" src="/images/placeholder.png" alt="No Donate Image!" data-src="/./images/donate1.png">	
+		<img id="donate-qr-alipay" class="donate-img lazyload" src="/images/placeholder.png" alt="No Donate Image!" data-src="/./images/donate2.png">	
 	</div>
 
-	<div class="article-bottom">
-		<a class="article-readmore" href="/2018/09/12/Connection 异常问题分析/">阅读更多</a> 	</div>	
-    
-</article>     
-     	
-  
+	<span class="donate-word">C'est la via</span>
+
+	<div class="donate-list">
+		<span class="iconfont icon-donate-wechat"></span>
+		<span class="iconfont icon-donate-alipay"></span>
+	</div>
+
+</div>
+
+ 
+        
+	
+<script id="-mob-share" src="http://f1.webshare.mob.com/code/mob-share.js?appkey=21d601593a1de"></script>
+	
+	<span class="share-btn">
+	<span class="iconfont icon-share"></span>
+	</span>
 
 
+	<div class="-mob-share sildeUpMin">
+		   			             
+            <a class="iconfont  icon-share-qq -mob-share-qq"></a>		
+     	   			             
+            <a class="iconfont  icon-share-weixin -mob-share-weixin"></a>		
+     	   			             
+            <a class="iconfont  icon-share-weibo -mob-share-weibo"></a>		
+     	   			             
+            <a class="iconfont  icon-share-douban -mob-share-douban"></a>		
+     	   			             
+            <a class="iconfont  icon-share-facebook -mob-share-facebook"></a>		
+     	   			             
+            <a class="iconfont  icon-share-twitter -mob-share-twitter"></a>		
+     	   			             
+            <a class="iconfont  icon-share-google -mob-share-google"></a>		
+     	   
+	</div>	
+
+      </div>  
+    <nav class="pf-paginator">
+           
+        
+            
+  </nav>   
+  </div>
+</div> 
+	
+	
+</article>
 
           </section> 
       </div>            

@@ -92,7 +92,7 @@
 	
 		<i class="iconfont icon-words"></i>
 		<span>
-			7929
+			7983
 		</span>
 	
 </div>
@@ -119,9 +119,8 @@
 <p>分析该截图之前，我们首先来看下TCP经典的四次挥手模型<br><img src="/images/placeholder.png" alt="TCP经典的四次挥手模型" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1540287380/TCP.png" class="lazyload"></p>
 <p>根据上图可以断定,抓包截图中缺省了第三次的FIN包，该链接处于半关闭状态。服务端抓取的报文缺省第三次FIN包及第四次的ACK。这个问题很奇怪，开始以为是网络原因导致的丢包，但是二者都是通过专网通讯，且网络稳定无丢包现象。最后查阅HttpClient官方指引的时候发现了这样一段话：</p>
 <blockquote>
-<p>经典阻塞I / O模型的主要缺点之一是网络套接字只有在I / O操作中被阻塞时才能对I / O事件作出反应。当连接释放回管理器时，它可以保持活动状态，但它无法监视套接字的状态并对任何I / O事件做出反应。如果连接在服务器端关闭，则客户端连接无法检测到连接状态的变化（并通过关闭其末端的套接字来做出适当的反应）。</p>
+<p>经典阻塞I / O模型的主要缺点之一是网络套接字只有在I / O操作中被阻塞时才能对I / O事件作出反应。当连接释放回管理器时，它可以保持活动状态，但它无法监视套接字的状态并对任何I / O事件做出反应。如果连接在服务器端关闭，则客户端连接无法检测到连接状态的变化（并通过关闭其末端的套接字来做出适当的反应）。<br>该次连接被服务端关闭，客户端处于CLOSE_WAIT状态，服务端处于FIN_WAIT_2状态，若长时间客户端未发送FIN包，防火墙也有相应连接状态的配置，该链接很可能被防火墙关闭，被防火墙关闭的链接均不会通知客户端和服务端。TCP/IP详解卷一书中这么描述FIN_WAIT_2的状态<br>如果执行主动关闭的应用层将进行全关闭，而不是半关闭来说明它还想接收数据，就设置一个定时器。如果这个连接空闲10分钟75秒，TCP将进入CLOSED状态<br>为了验证该原因，于是开启了客户端的抓包，发现有reset的错误的抓包如下<br><img src="/images/placeholder.png" alt="连接断开后客户端发包" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1540350297/%E7%AC%AC%E4%B8%89%E6%AC%A1fin%E5%8C%85%E5%8F%91%E4%B8%8D%E5%87%BA%E5%8E%BB.png" class="lazyload"><br>于是基本可以断定是连接异常关闭导致的。</p>
 </blockquote>
-<p>该次连接被服务端关闭，客户端处于CLOSE_WAIT状态，服务端处于FIN_WAIT_2状态，若长时间客户端未发送FIN包，防火墙也有相应连接状态的配置，该链接很可能被防火墙关闭，被防火墙关闭的链接均不会通知客户端和服务端。查询了出口网关的防火墙配置发现均有配置TIME_WAIT和FIN_WAIT以及正常连接的超时配置。<br>为了验证该原因，于是开启了客户端的抓包，发现有reset的错误的抓包如下<br><img src="/images/placeholder.png" alt="连接断开后客户端发包" data-src="https://res.cloudinary.com/dy1nj689r/image/upload/v1540350297/%E7%AC%AC%E4%B8%89%E6%AC%A1fin%E5%8C%85%E5%8F%91%E4%B8%8D%E5%87%BA%E5%8E%BB.png" class="lazyload"><br>于是基本可以断定是连接异常关闭导致的。</p>
 <h3 id="四、异常分析"><a href="#四、异常分析" class="headerlink" title="四、异常分析"></a>四、异常分析</h3><p>第二章和第三章我们只是从网络层分析了异常产生的原因，具体的解决方案还需要从业务代码中着手。<br>由于apache的HTTPClient 3.x和4.x版本的代码差异较大，而我们代码中使用的版本为3.1，所以这里着重讨论3.1的版本。<br>HTTPClient3.x的版本创建有三种写法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">HttpClient client = new HttpClient();</span><br><span class="line">HttpClient client = new HttpClient(connectionManager);</span><br><span class="line">HttpClient client = new HttpClient(new SimpleHttpConnectionManager(true));</span><br></pre></td></tr></table></figure></p>
 <p>第一种为创建默认的httpClient，第二种为创建带连接池的client，第三种为短连接模式。业务代码中创建httpClient的方式为第一种默认创建，在HTTPClient源码中，如果创建默认HTTPClinet，其构造方法中会默认创建SimpleHttpConnectionManager，SimpleHttpConnectionManager中默认赋值一个参数alwaysClose为false，意味不一定会在使用连接之后关闭该连接。<br>根据报文分析，默认创建的连接使用的http版本都为1.1，在HTTP/1.0中，默认使用的是短连接，但从 HTTP/1.1起，默认使用长连接。以下是关于长短连接的介绍：</p>
 <blockquote>
@@ -222,7 +221,10 @@
 
       </div>  
     <nav class="pf-paginator">
-           
+      
+         
+          <a href="/2018/09/18/漏洞扫描解决方案/" data-hover="漏洞扫描解决方案">上一篇</a>      
+            
         
             
   </nav>   
